@@ -57,7 +57,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
-
+  var expandable = true;
   void _incrementCounter() {
     setState(() {
       // This call to setState tells the Flutter framework that something has
@@ -109,9 +109,20 @@ class _MyHomePageState extends State<MyHomePage> {
             const Text(
               'Press the plus button to open bottom sheet',
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            GestureDetector(
+              onTap: (){
+                setState(() {
+                  expandable = !expandable;
+                });
+                print(expandable);
+              },
+              child: Container(
+                color: Colors.black12,
+                child: Text(
+                  'Expandable $expandable',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+              ),
             ),
           ],
         ),
@@ -120,6 +131,7 @@ class _MyHomePageState extends State<MyHomePage> {
         onPressed: () {
           Navigator.of(context).push(
             PerfectBottomSheetRoute(
+              expandable: expandable,
               builder: (context, _) {
                 return Material(
                   color: Colors.transparent,
@@ -130,7 +142,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     controller: _,
                     children: List.generate(
-                      30,
+                      500,
                       (index) => Text("$index"),
                     ),
                   ),

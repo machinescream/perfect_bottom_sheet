@@ -11,20 +11,32 @@ class PerfectBottomSheetRoute<T> extends _PopupRouteSettings<T> {
   final double openPercentage;
   final Color backgroundColor;
   final int borderRadius;
+  final bool expandable;
 
-  late final _controller = controller!;
   var _ignoring = false;
+  late final _sizeController = AnimationController(
+    vsync: navigator!,
+    lowerBound: 0.0,
+    upperBound: expandable ? _maxHeight : _bottomSheetHeight,
+  )..value = _bottomSheetHeight;
   late final _innerSc = ScrollController();
+  late final double _screenHeight =
+      MediaQuery.of(navigator!.context).size.height;
+  late final double _maxHeight =
+      _screenHeight - MediaQuery.of(navigator!.context).padding.top;
+  late final _bottomSheetHeight = _screenHeight * openPercentage;
 
   PerfectBottomSheetRoute({
     required this.builder,
     this.openPercentage = 0.3,
     this.backgroundColor = Colors.white,
     this.borderRadius = 24,
+    this.expandable = false,
   });
 
   @override
   void dispose() {
+    _sizeController.dispose();
     _innerSc.dispose();
     super.dispose();
   }
@@ -35,7 +47,6 @@ class PerfectBottomSheetRoute<T> extends _PopupRouteSettings<T> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) {
-    final bottomSheetHeight = _screenHeight * openPercentage;
     return RawGestureDetector(
       excludeFromSemantics: true,
       behavior: HitTestBehavior.opaque,
@@ -58,7 +69,7 @@ class PerfectBottomSheetRoute<T> extends _PopupRouteSettings<T> {
           () => TapGestureRecognizer(), //constructor
           (TapGestureRecognizer instance) {
             instance.onTapUp = (upd) {
-              if (upd.localPosition.dy < _screenHeight - bottomSheetHeight) {
+              if (upd.localPosition.dy < _screenHeight - _bottomSheetHeight) {
                 Navigator.of(context).pop();
               }
             };
@@ -72,9 +83,14 @@ class PerfectBottomSheetRoute<T> extends _PopupRouteSettings<T> {
           clipper: _SuperellipseClipper(borderRadius),
           child: ColoredBox(
             color: backgroundColor,
-            child: SizedBox(
-              height: bottomSheetHeight,
-              child: builder(context, _innerSc),
+            child: ValueListenableBuilder<double>(
+              valueListenable: _sizeController,
+              builder: (context, value, _) {
+                return SizedBox(
+                  height: value,
+                  child: builder(context, _innerSc),
+                );
+              },
             ),
           ),
         ),
@@ -117,37 +133,53 @@ class PerfectBottomSheetRoute<T> extends _PopupRouteSettings<T> {
 
   void _onUpdate(DragUpdateDetails upd) {
     final delta = upd.delta.dy;
-    if (delta > 0 && _innerSc.offset <= 0) {
-      _innerSc.jumpTo(0);
+    if (_draggable) {
+      _sizeController.value -= delta;
     }
-    if (_innerSc.offset == 0) {
-      _controller.value -= delta / _screenHeight;
+    if (_draggable && _sizeController.value < _maxHeight && expandable) {
+      _innerSc.jumpTo(0);
+      return;
+    }
+    if (delta > 0 && _innerSc.offset <= 0.0) {
+      _innerSc.jumpTo(0);
     }
   }
 
-  Future<void> _onEnd(DragEndDetails upd, VoidCallback onClose) async {
-    final val = _controller.value;
-    final velocity = _innerSc.offset > 0 ? 0 : upd.primaryVelocity ?? 0;
-    final toTop = val > openPercentage && velocity < 2000;
+  Future<void> _animateToTop(bool toTop) async {
     setState(() {
       _ignoring = true;
     });
-    await _controller.animateTo(
-      toTop ? 1.0 : 0.0,
+    await _sizeController.animateTo(
+      toTop ? _sizeController.upperBound : _bottomSheetHeight,
       duration: transitionDuration,
       curve: Curves.decelerate,
     );
     setState(() {
       _ignoring = false;
     });
-    if (!toTop) {
-      onClose();
-    }
   }
 
-  double get _screenHeight => MediaQuery.of(navigator!.context).size.height;
+  Future<void> _onEnd(DragEndDetails upd, VoidCallback onClose) async {
+    if (!_draggable) return;
+    final velocity = upd.velocity.pixelsPerSecond.dy;
+    if (velocity < -2000) {
+      await _animateToTop(true);
+      return;
+    }
+    if (velocity > 2000 || _sizeController.value < _bottomSheetHeight / 2) {
+      if (_sizeController.value < _bottomSheetHeight) {
+        onClose();
+        return;
+      }
+      await _animateToTop(false);
+      return;
+    }
+    final toTopValue = _sizeController.value > _maxHeight / 1.33;
+    await _animateToTop(toTopValue);
+    return;
+  }
 
-
+  bool get _draggable => _innerSc.offset <= 0.0;
 }
 
 class _AllowGestureVertical extends VerticalDragGestureRecognizer {
@@ -165,7 +197,7 @@ class _SuperellipseClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     var path = Path();
-    var r = size.height / clipValue; // Change this value to adjust the curve
+    var r = size.height / clipValue;
 
     path.lineTo(0, size.height);
     path.lineTo(size.width, size.height);
@@ -181,7 +213,7 @@ class _SuperellipseClipper extends CustomClipper<Path> {
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
-class _PopupRouteSettings<T> extends PopupRoute<T>{
+class _PopupRouteSettings<T> extends PopupRoute<T> {
   @override
   Color? get barrierColor => null;
 
@@ -201,7 +233,8 @@ class _PopupRouteSettings<T> extends PopupRoute<T>{
   bool get barrierDismissible => true;
 
   @override
-  Widget buildPage(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) {
+  Widget buildPage(BuildContext context, Animation<double> animation,
+      Animation<double> secondaryAnimation) {
     throw UnimplementedError();
   }
 }
