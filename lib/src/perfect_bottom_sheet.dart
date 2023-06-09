@@ -78,20 +78,20 @@ class PerfectBottomSheetRoute<T> extends _PopupRouteSettings<T> {
       },
       child: Align(
         alignment: Alignment.bottomCenter,
-        child: ClipPath(
-          clipBehavior: Clip.hardEdge,
-          clipper: _SuperellipseClipper(borderRadius),
-          child: ColoredBox(
-            color: backgroundColor,
-            child: ValueListenableBuilder<double>(
-              valueListenable: _sizeController,
-              builder: (context, value, _) {
-                return SizedBox(
-                  height: value,
+        child: ColoredBox(
+          color: backgroundColor,
+          child: ValueListenableBuilder<double>(
+            valueListenable: _sizeController,
+            builder: (context, value, _) {
+              return SizedBox(
+                height: value,
+                child: ClipPath(
+                  clipBehavior: Clip.hardEdge,
+                  clipper: _SuperellipseClipper(borderRadius),
                   child: builder(context, _innerSc),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
         ),
       ),
