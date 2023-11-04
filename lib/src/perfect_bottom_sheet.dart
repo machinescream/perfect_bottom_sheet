@@ -10,7 +10,7 @@ class PerfectBottomSheetRoute<T> extends _PopupRouteSettings<T> {
   final BuilderWithScrollController builder;
   final double openPercentage;
   final Color backgroundColor;
-  final int borderRadius;
+  final double borderRadius;
   final bool expandable;
 
   var _ignoring = false;
@@ -20,17 +20,17 @@ class PerfectBottomSheetRoute<T> extends _PopupRouteSettings<T> {
     upperBound: expandable ? _maxHeight : _bottomSheetHeight,
   )..value = _bottomSheetHeight;
   late final _innerSc = ScrollController();
-  late final double _screenHeight =
-      MediaQuery.of(navigator!.context).size.height;
-  late final double _maxHeight =
-      _screenHeight - MediaQuery.of(navigator!.context).padding.top;
+  late final context = navigator!.context;
+  late final double _screenHeight = MediaQuery.of(context).size.height;
+  late final double _maxHeight = _screenHeight - MediaQuery.of(context).padding.top;
   late final _bottomSheetHeight = _screenHeight * openPercentage;
+  late final _borderRadiusCircular = Radius.circular(borderRadius);
 
   PerfectBottomSheetRoute({
     required this.builder,
-    this.openPercentage = 0.3,
+    this.openPercentage = 0.45,
     this.backgroundColor = Colors.white,
-    this.borderRadius = 24,
+    this.borderRadius = 7,
     this.expandable = false,
   });
 
@@ -51,8 +51,7 @@ class PerfectBottomSheetRoute<T> extends _PopupRouteSettings<T> {
       excludeFromSemantics: true,
       behavior: HitTestBehavior.opaque,
       gestures: {
-        _AllowGestureVertical:
-            GestureRecognizerFactoryWithHandlers<_AllowGestureVertical>(
+        _AllowGestureVertical: GestureRecognizerFactoryWithHandlers<_AllowGestureVertical>(
           () => _AllowGestureVertical(), //constructor
           (_AllowGestureVertical instance) {
             instance.onUpdate = _onUpdate;
@@ -64,8 +63,7 @@ class PerfectBottomSheetRoute<T> extends _PopupRouteSettings<T> {
             };
           },
         ),
-        TapGestureRecognizer:
-            GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+        TapGestureRecognizer: GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
           () => TapGestureRecognizer(), //constructor
           (TapGestureRecognizer instance) {
             instance.onTapUp = (upd) {
@@ -85,9 +83,11 @@ class PerfectBottomSheetRoute<T> extends _PopupRouteSettings<T> {
             builder: (context, value, _) {
               return SizedBox(
                 height: value,
-                child: ClipPath(
-                  clipBehavior: Clip.hardEdge,
-                  clipper: _SuperellipseClipper(borderRadius),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.only(
+                    topLeft: _borderRadiusCircular,
+                    topRight: _borderRadiusCircular,
+                  ),
                   child: builder(context, _innerSc),
                 ),
               );
@@ -189,30 +189,6 @@ class _AllowGestureVertical extends VerticalDragGestureRecognizer {
   }
 }
 
-class _SuperellipseClipper extends CustomClipper<Path> {
-  final int clipValue;
-
-  _SuperellipseClipper(this.clipValue);
-
-  @override
-  Path getClip(Size size) {
-    var path = Path();
-    var r = size.height / clipValue;
-
-    path.lineTo(0, size.height);
-    path.lineTo(size.width, size.height);
-    path.lineTo(size.width, r);
-    path.quadraticBezierTo(size.width, 0, size.width - r, 0);
-    path.lineTo(r, 0);
-    path.quadraticBezierTo(0, 0, 0, r);
-
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
-}
-
 class _PopupRouteSettings<T> extends PopupRoute<T> {
   @override
   Color? get barrierColor => null;
@@ -233,8 +209,8 @@ class _PopupRouteSettings<T> extends PopupRoute<T> {
   bool get barrierDismissible => true;
 
   @override
-  Widget buildPage(BuildContext context, Animation<double> animation,
-      Animation<double> secondaryAnimation) {
+  Widget buildPage(
+      BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) {
     throw UnimplementedError();
   }
 }

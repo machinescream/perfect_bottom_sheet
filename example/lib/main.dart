@@ -132,9 +132,10 @@ class _MyHomePageState extends State<MyHomePage> {
           Navigator.of(context).push(
             PerfectBottomSheetRoute(
               expandable: expandable,
+              backgroundColor: Colors.transparent,
               builder: (context, _) {
                 return Material(
-                  color: Colors.transparent,
+                  color: Colors.white,
                   child: ListView(
                     padding: EdgeInsets.only(
                       bottom: MediaQuery.of(context).padding.bottom,
